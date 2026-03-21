@@ -4,6 +4,13 @@ set -euo pipefail
 # link-crawler wrapper for taskp
 # Usage: run.sh <url> <depth> <output> <diff> [max_pages] [include] [exclude] [same_domain]
 
+# playwright-cli のチェック
+if ! command -v playwright-cli &> /dev/null; then
+  echo "エラー: playwright-cli がインストールされていません" >&2
+  echo "  インストール: npm install -g @playwright/cli" >&2
+  exit 1
+fi
+
 # このスクリプト自身のディレクトリ（シンボリックリンク解決済み）
 CRAWLER_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
