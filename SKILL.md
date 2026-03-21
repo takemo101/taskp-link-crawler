@@ -2,6 +2,7 @@
 name: link-crawler
 description: 技術ドキュメントサイトをクロールし、AIコンテキスト用のMarkdownとして保存する
 mode: template
+timeout: 600000
 inputs:
   - name: url
     type: text
