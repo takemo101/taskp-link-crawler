@@ -1,0 +1,15 @@
+node_modules/
+package-lock.json
+dist/
+.context/
+crawled/
+coverage/
+*.log
+.DS_Store
+test-output*/
+.test-output*/
+.test-*/
+.tmp-*/
+
+# Playwright CLI cache
+.playwright-cli/
