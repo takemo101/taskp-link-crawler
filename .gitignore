@@ -13,3 +13,6 @@ test-output*/
 
 # Playwright CLI cache
 .playwright-cli/
+
+# Superset
+.superset/
