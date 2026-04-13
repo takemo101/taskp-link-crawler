@@ -57,7 +57,7 @@
 		"dist",
 		"src",
 		"scripts",
-		"README.md",
-		"SKILL.md"
+		".agents",
+		"README.md"
 	]
 }

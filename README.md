@@ -1,46 +1,48 @@
 # taskp-link-crawler
 
-技術ドキュメントサイトをクロールし、AIコンテキスト用のMarkdownとして保存する [taskp](../task-preset) スキル。
+技術ドキュメントサイトをクロールし、AIコンテキスト用のMarkdownとして保存するCLIツール & [taskp](https://github.com/takemo101/taskp) スキル。
 
-[dict-skills/link-crawler](../dict-skills) をベースに独立プロジェクト化したもの。
+## インストール
 
-## セットアップ
+### crawl コマンドのインストール
 
-### 1. 依存関係のインストール
+Bun でグローバルインストールします。
 
 ```bash
-cd ~/Desktop/ai/taskp-link-crawler
-bun install
+bun add -g github:takemo101/taskp-link-crawler
 ```
 
-または:
+インストール後、`crawl` コマンドが使えるようになります。
 
 ```bash
-./install.sh
-```
-
-### 2. taskp グローバルスキルとして登録
-
-```bash
-# .agents/skills/link-crawler/ ディレクトリをシンボリックリンク
-ln -sf ~/Desktop/ai/taskp-link-crawler/.agents/skills/link-crawler ~/.taskp/skills/link-crawler
+crawl --version
+crawl --help
 ```
 
 ### 前提条件
 
-- Bun >= 1.2.0
-- `uv` / `uvx`（推奨。デフォルトの MarkItDown 変換で使用）
-- playwright-cli (`npm install -g @playwright/cli`)
-- [taskp](../task-preset) がインストール済み
+- **Bun >= 1.2.0**（必須）
+- **playwright-cli**（cli fetcher 用）: `npm install -g @playwright/cli`
+- **playwright**（native fetcher 用）: `bun add -g playwright` + `npx playwright install chromium`
+- **uv / uvx**（推奨）: MarkItDown 変換で使用。なくても Turndown にフォールバック
 
-> HTML → Markdown 変換はデフォルトで [Microsoft MarkItDown](https://github.com/microsoft/markitdown) を使用します。初回変換時に MarkItDown の常駐ワーカープロセスを起動し、以降のページ変換で再利用します。`uvx` や Python 上の `markitdown` が使えない環境、または変換に失敗した場合は、既存の Turndown ベース変換へ自動フォールバックします。
+### taskp スキルとして使う場合
 
-## 使い方
-
-### taskp 経由（推奨）
+[taskp](https://github.com/takemo101/taskp) がインストール済みの環境で、スキルディレクトリをシンボリックリンクします。
 
 ```bash
-# インタラクティブ実行（どのプロジェクトからでも）
+# リポジトリをクローン
+git clone https://github.com/takemo101/taskp-link-crawler.git
+cd taskp-link-crawler
+
+# .agents/skills/link-crawler/ を taskp のスキルディレクトリにリンク
+ln -sf "$(pwd)/.agents/skills/link-crawler" ~/.taskp/skills/link-crawler
+```
+
+登録後は taskp から実行できます。
+
+```bash
+# インタラクティブ実行
 taskp run link-crawler
 
 # ワンライナー
@@ -53,46 +55,78 @@ taskp run link-crawler \
 taskp tui
 ```
 
-### 直接実行
+## 使い方
+
+### 基本
 
 ```bash
-cd ~/Desktop/ai/taskp-link-crawler
-bun run src/crawl.ts https://example.com/docs -d 2 -o .context/example
+crawl https://example.com/docs -d 2 -o .context/example
 ```
 
-### Notion 公開ページをクロールする例
+### オプション一覧
 
-Notion は JavaScript 描画が多いため、`native` fetcher と少し長めの待機時間を推奨します。
+| オプション | 説明 | デフォルト |
+|-----------|------|-----------|
+| `-d, --depth <num>` | 最大クロール深度 | `1` |
+| `--max-pages <num>` | 最大ページ数（0=無制限） | `0` |
+| `-o, --output <dir>` | 出力ディレクトリ | `.context/<site-name>/` |
+| `--same-domain` / `--no-same-domain` | 同一ドメインのみ | `true` |
+| `--include <pattern>` | 含めるURLパターン（正規表現） | - |
+| `--exclude <pattern>` | 除外するURLパターン（正規表現） | - |
+| `--delay <ms>` | リクエスト間隔 | `500` |
+| `--timeout <sec>` | リクエストタイムアウト | `30` |
+| `--wait <ms>` | SPA レンダリング待機時間 | `2000` |
+| `--fetcher <type>` | `cli`（軽量）または `native`（Cloudflare対応） | `cli` |
+| `--diff` | 差分クロール（変更ページのみ更新） | `false` |
+| `--headed` | ブラウザウィンドウを表示 | `false` |
+| `--no-pages` | 個別ページファイルをスキップ | - |
+| `--no-merge` | 結合ファイル（full.md）をスキップ | - |
+| `--chunks` | チャンク分割を有効化 | `false` |
+| `--no-robots` | robots.txt を無視 | - |
+
+### Fetcher の選び方
+
+| Fetcher | 用途 | 特徴 |
+|---------|------|------|
+| `cli`（デフォルト） | 一般的なサイト | 軽量・高速。playwright-cli を使用 |
+| `native` | Cloudflare / SPA 保護サイト | Bot検出回避（UA偽装, webdriver隠蔽）。要 playwright + Chromium |
+
+### 使用例
 
 ```bash
-crawl "https://uniikey.notion.site/support" \
-  -d 2 \
-  --fetcher native \
-  --wait 5000 \
-  -o /Users/lm_117_t.kawasaki/Desktop/workspace/contexts/.context/uniikey
+# 基本的なドキュメントクロール
+crawl https://docs.example.com -d 3 -o .context/example
+
+# Cloudflare 保護サイト（Notion 等）
+crawl https://example.notion.site/docs \
+  -d 2 --fetcher native --wait 8000 --timeout 60
+
+# 差分クロール（2回目以降を高速化）
+crawl https://docs.example.com -d 3 --diff
+
+# 特定パスのみクロール
+crawl https://example.com/docs \
+  -d 5 --include "/docs/api/"
 ```
 
-より安定性を重視する場合はタイムアウトも延ばしてください。
+## Markdown 変換方式
 
-```bash
-crawl "https://uniikey.notion.site/support" \
-  -d 2 \
-  --fetcher native \
-  --wait 8000 \
-  --timeout 60 \
-  -o /Users/lm_117_t.kawasaki/Desktop/workspace/contexts/.context/uniikey
-```
+- デフォルト: **MarkItDown**（Microsoft製、高品質）
+- フォールバック: **Turndown**（軽量、コードブロック特化）
 
-出力後の確認例:
+MarkItDown は Python ワーカープロセスとして常駐し、ページ変換を効率的に処理します。以下の場合は自動的に Turndown にフォールバックします:
 
-```bash
-ls /Users/lm_117_t.kawasaki/Desktop/workspace/contexts/.context/uniikey
-sed -n '1,120p' /Users/lm_117_t.kawasaki/Desktop/workspace/contexts/.context/uniikey/full.md
-```
+- Syntax highlighter 系コードブロック（`hljs`, `shiki`, `torchlight` 等）を含む HTML
+- MarkItDown ワーカーの起動失敗 / 変換エラー / タイムアウト
+
+`DEBUG=1` でフォールバック理由を確認できます。
 
 ## 開発
 
 ```bash
+# ローカル実行
+bun run dev https://example.com
+
 # テスト
 bun run test
 
@@ -101,38 +135,34 @@ bun run check
 
 # 型チェック
 bun run typecheck
+
+# ビルド（Node.js 向け配布用）
+bun run build
 ```
-
-## Markdown 変換方式
-
-- デフォルト: **MarkItDown**
-- フォールバック: **Turndown**
-
-通常の HTML はまず MarkItDown で変換します。毎ページごとに新しい CLI を起動するのではなく、初回に起動した MarkItDown ワーカーを使い回すため、変換品質を上げつつオーバーヘッドを抑えています。
-
-以下のケースでは内部的に Turndown を使用します。
-
-- Syntax highlighter 系の特殊なコードブロック（`hljs`, `shiki`, `torchlight`, `data-rehype-pretty-code-*` など）を含む HTML
-- MarkItDown ワーカーの起動に失敗した場合
-- MarkItDown 変換がエラーまたはタイムアウトした場合
-
-`DEBUG=1` を付けて実行すると、MarkItDown から Turndown へフォールバックした理由をデバッグログで確認できます。
 
 ## ファイル構成
 
 ```
 taskp-link-crawler/
-├── SKILL.md           ← taskp スキル定義
-├── run.sh             ← CLI オプション組み立てラッパー
-├── src/               ← クローラー本体
-│   ├── crawl.ts       ← CLI エントリーポイント
-│   ├── config.ts
-│   ├── crawler/       ← クロールエンジン
-│   ├── parser/        ← HTML → Markdown 変換
-│   ├── output/        ← ファイル出力
-│   ├── diff/          ← 差分クロール
+├── .agents/skills/link-crawler/  ← taskp スキル（SKILL.md + run.sh）
+├── src/
+│   ├── crawl.ts                  ← CLI エントリーポイント
+│   ├── config.ts                 ← 設定パース
+│   ├── crawler/                  ← クロールエンジン
+│   │   ├── index.ts              ← メイン Crawler クラス
+│   │   ├── fetcher.ts            ← playwright-cli fetcher
+│   │   ├── fetcher-native.ts     ← playwright native fetcher
+│   │   ├── logger.ts             ← ログ出力
+│   │   ├── robots.ts             ← robots.txt パーサー
+│   │   └── post-processor.ts     ← Merger/Chunker 実行
+│   ├── parser/                   ← HTML → Markdown 変換
+│   │   ├── converter.ts          ← MarkItDown + Turndown
+│   │   ├── extractor.ts          ← コンテンツ抽出
+│   │   └── links.ts              ← リンク抽出
+│   ├── output/                   ← ファイル出力
+│   ├── diff/                     ← 差分クロール
 │   └── utils/
-├── tests/             ← テストスイート
+├── tests/                        ← テストスイート（30ファイル, 897テスト）
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
