@@ -24,7 +24,9 @@ export class CrawlLogger implements Logger {
 			console.log(`   Max pages: ${this.config.maxPages}`);
 		}
 		console.log(`   Output: ${this.config.outputDir}`);
-		console.log(`   Mode: playwright-cli`);
+		console.log(
+			`   Mode: ${this.config.fetcherType === "native" ? "playwright-native" : "playwright-cli"}`,
+		);
 		console.log(`   Same domain only: ${this.config.sameDomain}`);
 		console.log(`   Diff mode: ${this.config.diff}`);
 		console.log(`   Pages: ${this.config.pages ? "yes" : "no"}`);
@@ -88,6 +90,13 @@ export class CrawlLogger implements Logger {
 	logFetchError(url: string, error: string, depth: number): void {
 		const indent = "  ".repeat(depth);
 		console.error(`${indent}  ✗ Fetch Error: ${error} - ${url}`);
+	}
+
+	/** Cloudflare チャレンジページ検出ログ */
+	logCloudflareChallenge(url: string, depth: number): void {
+		const indent = "  ".repeat(depth);
+		console.warn(`${indent}  ⚠️  Cloudflare challenge page detected, skipping: ${url}`);
+		console.warn(`${indent}     Tip: retry with a longer --wait (e.g. --wait 12000)`);
 	}
 
 	/** 後処理開始ログ */

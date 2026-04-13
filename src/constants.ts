@@ -67,6 +67,10 @@ export const PATHS = {
 		"/opt/homebrew/bin/node",
 		"/usr/local/bin/node",
 		"/usr/bin/node",
+		// bun グローバルインストール先
+		...(process.env.HOME ? [`${process.env.HOME}/.bun/bin/node`] : []),
+		// nvm 管理下 (現在アクティブなバージョン)
+		...(process.env.NVM_BIN ? [`${process.env.NVM_BIN}/node`] : []),
 	],
 	/** Playwright CLIの候補 */
 	PLAYWRIGHT_PATHS: [
@@ -74,6 +78,10 @@ export const PATHS = {
 		"/opt/homebrew/bin/playwright-cli",
 		"/usr/local/bin/playwright-cli",
 		...(process.env.HOME ? [`${process.env.HOME}/.npm-global/bin/playwright-cli`] : []),
+		// bun グローバルインストール先
+		...(process.env.HOME ? [`${process.env.HOME}/.bun/bin/playwright-cli`] : []),
+		// nvm 管理下 (現在アクティブなバージョン)
+		...(process.env.NVM_BIN ? [`${process.env.NVM_BIN}/playwright-cli`] : []),
 	],
 } as const;
 

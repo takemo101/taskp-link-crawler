@@ -3,6 +3,20 @@ import { ConfigError } from "./errors.js";
 import type { CrawlConfig } from "./types.js";
 import { generateSiteName } from "./utils/site-name.js";
 
+const VALID_FETCHER_TYPES = ["cli", "native"] as const;
+type FetcherType = (typeof VALID_FETCHER_TYPES)[number];
+
+function parseFetcherType(value: unknown): FetcherType {
+	const str = String(value ?? "cli");
+	if (!VALID_FETCHER_TYPES.includes(str as FetcherType)) {
+		throw new ConfigError(
+			`Invalid fetcher type: "${str}". Must be one of: ${VALID_FETCHER_TYPES.join(", ")}`,
+			"fetcher",
+		);
+	}
+	return str as FetcherType;
+}
+
 /**
  * parseConfig の戻り値
  * config パース結果と、呼び出し側で表示すべき警告メッセージを含む
@@ -114,6 +128,7 @@ export function parseConfig(
 		chunks: options.chunks === true,
 		keepSession: Boolean(options.keepSession),
 		respectRobots: options.robots !== false,
+		fetcherType: parseFetcherType(options.fetcher),
 		version,
 	};
 

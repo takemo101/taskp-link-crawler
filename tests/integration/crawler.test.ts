@@ -101,6 +101,7 @@ const getDefaultConfig = (): CrawlConfig => ({
 	chunks: true,
 	keepSession: false,
 	respectRobots: true,
+	fetcherType: "cli",
 	version: "test-version",
 });
 

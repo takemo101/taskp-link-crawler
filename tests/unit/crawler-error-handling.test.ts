@@ -30,6 +30,7 @@ describe("Crawler - Error Handling", () => {
 			headed: false,
 			keepSession: false,
 			respectRobots: true,
+			fetcherType: "cli",
 			version: "test-version",
 		};
 

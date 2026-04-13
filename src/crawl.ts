@@ -37,6 +37,7 @@ program
 	.option("--chunks", "Enable chunked output files", false)
 	.option("--keep-session", "Keep .playwright-cli directory after crawl (for debugging)", false)
 	.option("--no-robots", "Ignore robots.txt (not recommended)")
+	.option("--fetcher <type>", "Fetcher type: cli (default) or native (Cloudflare/SPA対応)", "cli")
 	.version(packageJson.version)
 	.parse();
 

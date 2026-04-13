@@ -34,6 +34,7 @@ const createMockConfig = (overrides: Partial<CrawlConfig> = {}): CrawlConfig => 
 	chunks: true,
 	keepSession: false,
 	respectRobots: true,
+	fetcherType: "cli",
 	version: "test-version",
 	...overrides,
 });

@@ -56,6 +56,7 @@ describe("PostProcessor", () => {
 			chunks: true,
 			keepSession: false,
 			respectRobots: true,
+			fetcherType: "cli",
 			version: "test-version",
 		};
 

@@ -55,16 +55,16 @@ export class Crawler {
 		if (fetcher) {
 			this.fetcher = fetcher;
 		} else {
-			this.fetcherPromise = createPlaywrightFetcher(config, (msg, data) =>
-				this.logger.logDebug(msg, data),
-			);
+			this.fetcherPromise = createFetcher(config, (msg, data) => this.logger.logDebug(msg, data));
 		}
 	}
 
 	/** Fetcherの初期化 */
 	private async initFetcher(): Promise<Fetcher> {
 		if (!this.fetcher && this.fetcherPromise) {
-			this.logger.logDebug("Initializing Fetcher (playwright-cli)");
+			this.logger.logDebug(
+				`Initializing Fetcher (${this.config.fetcherType === "native" ? "playwright-native" : "playwright-cli"})`,
+			);
 			this.fetcher = await this.fetcherPromise;
 			this.fetcherPromise = undefined;
 			this.logger.logDebug("Fetcher initialized successfully");
@@ -184,16 +184,15 @@ export class Crawler {
 				this.postProcessor.process(result.pages, this.pageContents);
 				this.logger.logDebug("Generated partial outputs during cleanup");
 
-				// 非diffモード: 一時ディレクトリを確定（ベストエフォート）
-				if (!this.config.diff) {
-					try {
-						this.writer.finalize();
-						this.logger.logDebug("Finalized partial results in non-diff mode");
-					} catch (error) {
-						this.logger.logDebug("Failed to finalize partial results (non-fatal)", {
-							error: String(error),
-						});
-					}
+				// 途中結果を確定（diff/非diff 両モード）
+				// diff モードでもプロセス強制終了時にデータが消えないよう finalize する
+				try {
+					this.writer.finalize();
+					this.logger.logDebug("Finalized partial results");
+				} catch (error) {
+					this.logger.logDebug("Failed to finalize partial results (non-fatal)", {
+						error: String(error),
+					});
 				}
 			}
 		} catch (error) {
@@ -345,19 +344,49 @@ export class Crawler {
 		}
 	}
 
+	/** Cloudflare チャレンジページかどうかを検出 */
+	private isCloudflareChallengePage(dom: JSDOM): boolean {
+		const doc = dom.window.document;
+
+		// タイトルによる検出（多言語対応）
+		const title = doc.querySelector("title")?.textContent?.trim() ?? "";
+		const cfTitles = ["Just a moment", "しばらくお待ちください", "Un momento", "Ein Moment"];
+		if (cfTitles.some((t) => title.includes(t))) {
+			return true;
+		}
+
+		// Cloudflare 固有の HTML 要素による検出
+		const cfSelectors = [
+			"#cf-wrapper",
+			".cf-browser-verification",
+			"form[action*='cdn-cgi/challenge']",
+			"script[src*='cdn-cgi/challenge-platform']",
+		];
+		return cfSelectors.some((sel) => doc.querySelector(sel) !== null);
+	}
+
 	/** HTMLページの処理 */
 	private async processHtmlPage(url: string, html: string, depth: number): Promise<void> {
 		// 1. JSDOM生成
-		const dom = new JSDOM(html, { url });
+		// <style> タグを事前に除去: jsdom の CSS パーサーが CSSStyleDeclaration.parentRule
+		// (読み取り専用) への書き込みを試みてクラッシュするのを防ぐ (jsdom #3809)
+		const sanitizedHtml = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+		const dom = new JSDOM(sanitizedHtml, { url });
 
 		try {
-			// 2. ページ解析
-			const parsed = this.parsePage(dom);
+			// 2. Cloudflare チャレンジページの検出
+			if (this.isCloudflareChallengePage(dom)) {
+				this.logger.logCloudflareChallenge(url, depth);
+				return;
+			}
 
-			// 3. 保存処理
+			// 3. ページ解析
+			const parsed = await this.parsePage(dom);
+
+			// 4. 保存処理
 			this.processAndSavePage(url, parsed, depth);
 
-			// 4. 再帰クロール
+			// 5. 再帰クロール
 			await this.crawlLinks(parsed.links, depth);
 		} finally {
 			dom.window.close();
@@ -365,7 +394,7 @@ export class Crawler {
 	}
 
 	/** ページ解析: メタデータ・リンク・コンテンツの抽出と変換 */
-	private parsePage(dom: JSDOM): ParsedPage {
+	private async parsePage(dom: JSDOM): Promise<ParsedPage> {
 		// メタデータ抽出
 		const metadata = extractMetadata(dom);
 		this.logger.logDebug("Metadata extracted", {
@@ -385,7 +414,7 @@ export class Crawler {
 		this.logger.logDebug("Content extracted", { title, contentLength: content?.length || 0 });
 
 		// Markdown変換
-		const markdown = content ? htmlToMarkdown(content) : "";
+		const markdown = content ? await htmlToMarkdown(content) : "";
 		this.logger.logDebug("HTML converted to Markdown", { markdownLength: markdown.length });
 
 		// ハッシュ計算
@@ -472,11 +501,15 @@ export class Crawler {
 	}
 }
 
-/** PlaywrightFetcherのファクトリ関数（動的インポート） */
-async function createPlaywrightFetcher(
+/** Fetcher のファクトリ関数（fetcherType に応じて切り替え） */
+async function createFetcher(
 	config: CrawlConfig,
 	logDebug?: (message: string, data?: unknown) => void,
 ): Promise<Fetcher> {
+	if (config.fetcherType === "native") {
+		const mod = await import("./fetcher-native.js");
+		return new mod.PlaywrightNativeFetcher(config, logDebug);
+	}
 	// 動的インポートを使用してBun依存のモジュールを遅延ロード
 	const mod = await import("./fetcher.js");
 	return new mod.PlaywrightFetcher(config, undefined, undefined, logDebug);

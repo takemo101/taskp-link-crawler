@@ -65,6 +65,7 @@ describe("Crawler - link extraction order", () => {
 			chunks: false,
 			keepSession: false,
 			respectRobots: false,
+			fetcherType: "cli",
 			version: "1.0.0",
 		};
 	});

@@ -97,6 +97,7 @@ describe("shouldCrawl", () => {
 		chunks: true,
 		keepSession: false,
 		respectRobots: true,
+		fetcherType: "cli",
 		version: "test-version",
 	};
 
@@ -248,6 +249,7 @@ describe("extractLinks", () => {
 		chunks: true,
 		keepSession: false,
 		respectRobots: true,
+		fetcherType: "cli",
 		version: "test-version",
 	};
 
