@@ -24,6 +24,8 @@ export interface CrawlConfig {
 	respectRobots: boolean;
 	/** 使用するフェッチャー種別 */
 	fetcherType: "cli" | "native";
+	/** クエリパラメータを除去してURL重複排除するか */
+	stripQuery: boolean;
 	/** クローラーのバージョン（package.jsonから取得） */
 	version: string;
 }

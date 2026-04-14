@@ -129,6 +129,7 @@ export function parseConfig(
 		keepSession: Boolean(options.keepSession),
 		respectRobots: options.robots !== false,
 		fetcherType: parseFetcherType(options.fetcher),
+		stripQuery: Boolean(options.stripQuery),
 		version,
 	};
 

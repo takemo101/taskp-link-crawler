@@ -98,6 +98,7 @@ describe("shouldCrawl", () => {
 		keepSession: false,
 		respectRobots: true,
 		fetcherType: "cli",
+		stripQuery: false,
 		version: "test-version",
 	};
 
@@ -250,6 +251,7 @@ describe("extractLinks", () => {
 		keepSession: false,
 		respectRobots: true,
 		fetcherType: "cli",
+		stripQuery: false,
 		version: "test-version",
 	};
 
@@ -635,5 +637,67 @@ describe("extractLinks", () => {
 
 		expect(links).toHaveLength(1);
 		expect(links[0]).toBe("https://example.com/page");
+	});
+
+	it("should deduplicate links by stripped query when stripQuery is enabled", () => {
+		const html = `
+			<html>
+				<body>
+					<a href="/page?ref=a">Link A</a>
+					<a href="/page?ref=b">Link B</a>
+					<a href="/page?ref=c">Link C</a>
+					<a href="/other">Other</a>
+				</body>
+			</html>
+		`;
+		const visited = new Set<string>();
+		const config = { ...baseConfig, stripQuery: true };
+		const dom = new JSDOM(html, { url: "https://example.com" });
+		const links = extractLinks(dom, visited, config);
+
+		// /page?ref=a, /page?ref=b, /page?ref=c are all the same when stripped
+		expect(links).toHaveLength(2);
+		expect(links[0]).toBe("https://example.com/page?ref=a");
+		expect(links[1]).toBe("https://example.com/other");
+	});
+});
+
+describe("shouldCrawl with stripQuery", () => {
+	const baseConfig: CrawlConfig = {
+		startUrl: "https://example.com",
+		maxDepth: 2,
+		maxPages: null,
+		outputDir: "./output",
+		sameDomain: true,
+		includePattern: null,
+		excludePattern: null,
+		delay: 500,
+		timeout: 30000,
+		spaWait: 2000,
+		headed: false,
+		diff: false,
+		pages: true,
+		merge: true,
+		chunks: true,
+		keepSession: false,
+		respectRobots: true,
+		fetcherType: "cli",
+		stripQuery: true,
+		version: "test-version",
+	};
+
+	it("should treat URLs with different query params as visited", () => {
+		const visited = new Set(["https://example.com/page"]);
+		expect(shouldCrawl("https://example.com/page?ref=abc", visited, baseConfig)).toBe(false);
+	});
+
+	it("should treat URL without query as visited when stripped version exists", () => {
+		const visited = new Set(["https://example.com/page"]);
+		expect(shouldCrawl("https://example.com/page", visited, baseConfig)).toBe(false);
+	});
+
+	it("should allow URL when stripped version is not visited", () => {
+		const visited = new Set(["https://example.com/other"]);
+		expect(shouldCrawl("https://example.com/page?ref=abc", visited, baseConfig)).toBe(true);
 	});
 });

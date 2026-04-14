@@ -83,6 +83,7 @@ const defaultConfig: CrawlConfig = {
 	keepSession: false,
 	respectRobots: true,
 	fetcherType: "cli",
+	stripQuery: false,
 	version: "test-version",
 };
 

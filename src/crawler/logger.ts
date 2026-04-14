@@ -33,6 +33,9 @@ export class CrawlLogger implements Logger {
 		console.log(`   Merge: ${this.config.merge ? "yes" : "no"}`);
 		console.log(`   Chunks: ${this.config.chunks ? "yes" : "no"}`);
 		console.log(`   Robots.txt: ${this.config.respectRobots ? "respect" : "ignore"}`);
+		if (this.config.stripQuery) {
+			console.log(`   Strip query: yes`);
+		}
 		if (this.debug) {
 			console.log(`   Debug: enabled`);
 		}

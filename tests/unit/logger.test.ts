@@ -29,6 +29,7 @@ describe("CrawlLogger", () => {
 			keepSession: false,
 			respectRobots: true,
 			fetcherType: "cli",
+			stripQuery: false,
 			version: "2.0.0",
 		};
 	});

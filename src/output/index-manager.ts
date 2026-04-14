@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { FILENAME } from "../constants.js";
 import type { CrawledPage, CrawlResult, Logger, PageMetadata } from "../types.js";
+import { stripQueryParams } from "../utils/url.js";
 
 /**
  * CrawlResult型の型ガード関数
@@ -28,6 +29,7 @@ export class IndexManager {
 	private pageCount = 0;
 	/** 訪問済みURL（差分クロール時のマージ範囲制限用） */
 	private visitedUrls: Set<string> | null = null;
+	private stripQuery = false;
 	/** マージ済みフラグ（saveIndex複数回呼び出し対策） */
 	private mergedAlready = false;
 
@@ -140,8 +142,9 @@ export class IndexManager {
 	 * 訪問済みURLを設定（差分クロール時のマージ範囲制限用）
 	 * @param urls 訪問済みURLのSet
 	 */
-	setVisitedUrls(urls: Set<string>): void {
+	setVisitedUrls(urls: Set<string>, stripQuery = false): void {
 		this.visitedUrls = urls;
+		this.stripQuery = stripQuery;
 	}
 
 	/**
@@ -165,7 +168,8 @@ export class IndexManager {
 
 			// 訪問済みURLリストが設定されている場合、
 			// 訪問されたページのみマージ（削除されたページは除外）
-			if (this.visitedUrls && !this.visitedUrls.has(url)) {
+			const visitKey = this.stripQuery ? stripQueryParams(url) : url;
+			if (this.visitedUrls && !this.visitedUrls.has(visitKey)) {
 				continue;
 			}
 

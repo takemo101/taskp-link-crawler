@@ -1,5 +1,6 @@
 import type { JSDOM } from "jsdom";
 import type { CrawlConfig } from "../types.js";
+import { stripQueryParams } from "../utils/url.js";
 
 /** バイナリ・非HTMLファイルの拡張子パターン */
 const SKIP_EXTENSIONS =
@@ -29,7 +30,8 @@ export function isSameDomain(url: string, baseUrl: string): boolean {
 
 /** クロール対象かどうか判定 */
 export function shouldCrawl(url: string, visited: Set<string>, config: CrawlConfig): boolean {
-	if (visited.has(url)) return false;
+	const visitKey = config.stripQuery ? stripQueryParams(url) : url;
+	if (visited.has(visitKey)) return false;
 	if (config.sameDomain && !isSameDomain(url, config.startUrl)) return false;
 	if (config.includePattern && !config.includePattern.test(url)) return false;
 	if (config.excludePattern?.test(url)) return false;
@@ -43,7 +45,8 @@ export function shouldCrawl(url: string, visited: Set<string>, config: CrawlConf
 /** HTML からリンクを抽出（JSDOMインスタンスを使用） */
 export function extractLinks(dom: JSDOM, visited: Set<string>, config: CrawlConfig): string[] {
 	const baseUrl = dom.window.location.href;
-	const links = new Set<string>();
+	const seenKeys = new Set<string>();
+	const result: string[] = [];
 	const anchors = dom.window.document.querySelectorAll("a[href]");
 
 	for (const anchor of anchors) {
@@ -63,10 +66,17 @@ export function extractLinks(dom: JSDOM, visited: Set<string>, config: CrawlConf
 		}
 
 		const normalized = normalizeUrl(href, baseUrl);
-		if (normalized && shouldCrawl(normalized, visited, config)) {
-			links.add(normalized);
+		if (!normalized || !shouldCrawl(normalized, visited, config)) {
+			continue;
+		}
+
+		// stripQuery 有効時はクエリ除去したキーで重複排除
+		const key = config.stripQuery ? stripQueryParams(normalized) : normalized;
+		if (!seenKeys.has(key)) {
+			seenKeys.add(key);
+			result.push(normalized);
 		}
 	}
 
-	return Array.from(links);
+	return result;
 }

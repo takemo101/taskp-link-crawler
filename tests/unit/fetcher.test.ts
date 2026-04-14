@@ -35,6 +35,7 @@ const createMockConfig = (overrides: Partial<CrawlConfig> = {}): CrawlConfig => 
 	keepSession: false,
 	respectRobots: true,
 	fetcherType: "cli",
+	stripQuery: false,
 	version: "test-version",
 	...overrides,
 });

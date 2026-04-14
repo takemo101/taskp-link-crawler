@@ -7,6 +7,7 @@ import { extractLinks } from "../parser/links.js";
 import type { CrawlConfig, Fetcher, FetchResult, PageMetadata } from "../types.js";
 import type { RuntimeAdapter } from "../utils/runtime.js";
 import { createRuntimeAdapter } from "../utils/runtime.js";
+import { stripQueryParams } from "../utils/url.js";
 import { CrawlLogger } from "./logger.js";
 import { PostProcessor } from "./post-processor.js";
 import { RobotsChecker } from "./robots.js";
@@ -43,6 +44,11 @@ export class Crawler {
 	private static readonly MAX_RETRIES = 2;
 	/** クロール試行数カウンタ (maxPages制限用、リトライによる visited 削除の影響を受けない) */
 	private attemptedCount = 0;
+
+	/** visited セット用のキーを返す（stripQuery 有効時はク��リパラメータを除去） */
+	private visitKey(url: string): string {
+		return this.config.stripQuery ? stripQueryParams(url) : url;
+	}
 
 	constructor(
 		private config: CrawlConfig,
@@ -120,7 +126,7 @@ export class Crawler {
 
 		// 差分モード時: 訪問済みURLを渡す
 		if (this.config.diff) {
-			this.writer.setVisitedUrls(this.visited);
+			this.writer.setVisitedUrls(this.visited, this.config.stripQuery);
 		}
 
 		const indexPath = this.writer.saveIndex();
@@ -171,7 +177,7 @@ export class Crawler {
 
 	/** クリーンアップ: ステップ1 - 途中結果のindex.json保存 */
 	private savePartialIndex(): void {
-		this.writer.setVisitedUrls(this.visited);
+		this.writer.setVisitedUrls(this.visited, this.config.stripQuery);
 		const indexPath = this.writer.saveIndex();
 		this.logger.logDebug("Saved partial index", { path: indexPath });
 	}
@@ -238,7 +244,7 @@ export class Crawler {
 		}
 
 		// 2. 訪問済みマーク
-		this.visited.add(url); // URL単位で訪問済みを管理（深度は無関係）
+		this.visited.add(this.visitKey(url)); // URL単位で訪��済みを管理（深度は無関係）
 		this.attemptedCount++; // maxPages制限用カウンタをインクリメント
 		this.logger.logCrawlStart(url, depth);
 
@@ -270,7 +276,7 @@ export class Crawler {
 		if (retries < Crawler.MAX_RETRIES) {
 			// リトライ可能: visitedから削除してカウントを増やす
 			this.failedUrls.set(url, retries + 1);
-			this.visited.delete(url);
+			this.visited.delete(this.visitKey(url));
 			this.logger.logDebug("Fetch failed, will retry if linked again", {
 				url,
 				retries: retries + 1,
@@ -297,7 +303,7 @@ export class Crawler {
 		}
 
 		// depth制限と訪問済みチェック
-		if (depth > this.config.maxDepth || this.visited.has(url)) {
+		if (depth > this.config.maxDepth || this.visited.has(this.visitKey(url))) {
 			return false;
 		}
 
@@ -492,7 +498,7 @@ export class Crawler {
 		// 再帰
 		if (depth < this.config.maxDepth) {
 			for (const link of links) {
-				if (!this.visited.has(link)) {
+				if (!this.visited.has(this.visitKey(link))) {
 					await this.runtime.sleep(this.config.delay);
 					await this.crawl(link, depth + 1);
 				}

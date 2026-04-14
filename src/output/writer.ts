@@ -211,8 +211,8 @@ export class OutputWriter {
 	}
 
 	/** 訪問済みURLを設定（差分クロール時のマージ範囲制限用） */
-	setVisitedUrls(urls: Set<string>): void {
-		this.indexManager.setVisitedUrls(urls);
+	setVisitedUrls(urls: Set<string>, stripQuery = false): void {
+		this.indexManager.setVisitedUrls(urls, stripQuery);
 	}
 
 	/**

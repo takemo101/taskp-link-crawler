@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # link-crawler wrapper for taskp
-# Usage: run.sh <url> <depth> <output> <diff> [max_pages] [include] [exclude] [same_domain] [wait] [timeout] [fetcher]
+# Usage: run.sh <url> <depth> <output> <diff> [max_pages] [include] [exclude] [same_domain] [wait] [timeout] [fetcher] [strip_query]
 
 url="$1"
 depth="$2"
@@ -15,6 +15,7 @@ same_domain="${8:-true}"
 wait="${9:-}"
 timeout="${10:-}"
 fetcher="${11:-cli}"
+strip_query="${12:-false}"
 
 # --- crawl コマンドのパス解決 ---
 # crawl は bun add -g でグローバルインストールされた CLI。
@@ -84,6 +85,10 @@ fi
 
 if [[ "$fetcher" == "native" ]]; then
   cmd+=(--fetcher native)
+fi
+
+if [[ "$strip_query" == "true" ]]; then
+  cmd+=(--strip-query)
 fi
 
 echo "🕷️  link-crawler 実行:"

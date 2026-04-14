@@ -62,6 +62,11 @@ actions:
           - native
         default: cli
         required: false
+      - name: strip_query
+        type: confirm
+        message: "クエリパラメータを除去して重複排除しますか？（?page=1 などを同一URLとみなす）"
+        default: false
+        required: false
   organize:
     description: クロール済みドキュメントをAIで整理・分割する
     mode: agent
@@ -133,6 +138,11 @@ actions:
           - native
         default: cli
         required: false
+      - name: strip_query
+        type: confirm
+        message: "クエリパラメータを除去して重複排除しますか？（?page=1 などを同一URLとみなす）"
+        default: false
+        required: false
 ---
 
 # 🕷️ link-crawler — ドキュメントクロール & AI整理
@@ -144,7 +154,7 @@ actions:
 **{{url}}** を深度 **{{depth}}** でクロールし、`{{output}}` に保存します。
 
 ```bash
-bash {{__skill_dir__}}/run.sh "{{url}}" "{{depth}}" "{{output}}" "{{diff}}" "{{max_pages}}" "{{include}}" "{{exclude}}" "{{same_domain}}" "{{wait}}" "{{timeout}}" "{{fetcher}}"
+bash {{__skill_dir__}}/run.sh "{{url}}" "{{depth}}" "{{output}}" "{{diff}}" "{{max_pages}}" "{{include}}" "{{exclude}}" "{{same_domain}}" "{{wait}}" "{{timeout}}" "{{fetcher}}" "{{strip_query}}"
 ```
 
 ## action:organize
@@ -254,7 +264,7 @@ bash {{__skill_dir__}}/run.sh "{{url}}" "{{depth}}" "{{output}}" "{{diff}}" "{{m
 **{{url}}** をクロールし、その後AIで整理します。
 
 ```bash
-bash {{__skill_dir__}}/run.sh "{{url}}" "{{depth}}" "{{output}}" "{{diff}}" "{{max_pages}}" "{{include}}" "{{exclude}}" "{{same_domain}}" "{{wait}}" "{{timeout}}" "{{fetcher}}"
+bash {{__skill_dir__}}/run.sh "{{url}}" "{{depth}}" "{{output}}" "{{diff}}" "{{max_pages}}" "{{include}}" "{{exclude}}" "{{same_domain}}" "{{wait}}" "{{timeout}}" "{{fetcher}}" "{{strip_query}}"
 ```
 
 ```bash
