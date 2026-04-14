@@ -6,10 +6,6 @@ const MARKITDOWN_TIMEOUT_MS = 30_000;
 const MARKITDOWN_RUNNERS = [
 	{ command: "python3", args: ["-u", "-c", buildMarkItDownWorkerScript()] },
 	{ command: "python", args: ["-u", "-c", buildMarkItDownWorkerScript()] },
-	{
-		command: "uvx",
-		args: ["--from", "markitdown", "python", "-u", "-c", buildMarkItDownWorkerScript()],
-	},
 ] as const;
 const unavailableMarkItDownCommands = new Set<string>();
 const TURNDOWN_PREFERRED_PATTERNS = [
@@ -45,6 +41,8 @@ class MarkItDownWorker {
 	private exited = false;
 
 	constructor(private child: ChildProcessWithoutNullStreams) {
+		// unref() でイベントループから切り離し、メイン処理完了時にプロセスが終了できるようにする
+		if (typeof child.unref === "function") child.unref();
 		child.stdout.setEncoding("utf8");
 		child.stdout.on("data", (chunk: string) => this.handleStdout(chunk));
 		child.stderr.setEncoding("utf8");
@@ -90,12 +88,17 @@ class MarkItDownWorker {
 	}
 
 	dispose(): void {
+		if (this.disposed) return;
 		this.disposed = true;
 		for (const request of this.pending.values()) {
 			clearTimeout(request.timeout);
 			request.reject(new Error("MarkItDown worker disposed"));
 		}
 		this.pending.clear();
+		// ストリームのリスナーを除去してイベントループを解放
+		this.child.stdout.removeAllListeners();
+		this.child.stderr.removeAllListeners();
+		this.child.stdin.end();
 		if (!this.exited) {
 			this.child.kill();
 		}
@@ -280,6 +283,8 @@ async function createMarkItDownWorker(): Promise<MarkItDownWorker | null> {
 	return null;
 }
 
+const MARKITDOWN_STARTUP_TIMEOUT_MS = 30_000;
+
 async function tryStartMarkItDownWorker(
 	command: string,
 	args: readonly string[],
@@ -292,8 +297,21 @@ async function tryStartMarkItDownWorker(
 		child.stderr.setEncoding("utf8");
 		let stdoutBuffer = "";
 		let stderrBuffer = "";
+		let resolved = false;
+
+		const startupTimeout = setTimeout(() => {
+			if (resolved) return;
+			resolved = true;
+			cleanup();
+			logMarkItDownDebug(
+				`worker startup timed out via ${command} (${MARKITDOWN_STARTUP_TIMEOUT_MS}ms)`,
+			);
+			child.kill();
+			resolve(null);
+		}, MARKITDOWN_STARTUP_TIMEOUT_MS);
 
 		const cleanup = () => {
+			clearTimeout(startupTimeout);
 			child.removeListener("spawn", handleSpawn);
 			child.removeListener("error", handleError);
 			child.removeListener("exit", handleExit);
@@ -311,7 +329,16 @@ async function tryStartMarkItDownWorker(
 			if (newlineIndex === -1) return;
 			const line = stdoutBuffer.slice(0, newlineIndex).trim();
 			stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
-			if (line === JSON.stringify({ ready: true })) {
+			let isReady = false;
+			try {
+				const msg = JSON.parse(line);
+				isReady = msg.ready === true;
+			} catch {
+				// JSON パース失敗は無視
+			}
+			if (isReady) {
+				if (resolved) return;
+				resolved = true;
 				cleanup();
 				resolve(new MarkItDownWorker(child));
 			}
@@ -322,6 +349,8 @@ async function tryStartMarkItDownWorker(
 		};
 
 		const handleError = (error: Error) => {
+			if (resolved) return;
+			resolved = true;
 			cleanup();
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") {
 				unavailableMarkItDownCommands.add(command);
@@ -331,6 +360,8 @@ async function tryStartMarkItDownWorker(
 		};
 
 		const handleExit = (code: number | null, signal: NodeJS.Signals | null) => {
+			if (resolved) return;
+			resolved = true;
 			cleanup();
 			logMarkItDownDebug(
 				`worker exited before ready via ${command} (code=${code}, signal=${signal})`,
@@ -349,6 +380,8 @@ async function tryStartMarkItDownWorker(
 
 function registerExitHandler(worker: MarkItDownWorker): void {
 	if (exitHandlerRegistered) return;
+	// beforeExit: イベントループが空になったときに発火（exit より前）
+	process.once("beforeExit", () => worker.dispose());
 	process.once("exit", () => worker.dispose());
 	exitHandlerRegistered = true;
 }

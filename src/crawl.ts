@@ -78,8 +78,12 @@ async function main(): Promise<void> {
 	await crawler.run();
 }
 
-main().catch((error) => {
-	const { message, exitCode } = handleError(error);
-	console.error(message);
-	process.exit(exitCode);
-});
+main()
+	.then(() => {
+		process.exit(EXIT_CODES.SUCCESS);
+	})
+	.catch((error) => {
+		const { message, exitCode } = handleError(error);
+		console.error(message);
+		process.exit(exitCode);
+	});

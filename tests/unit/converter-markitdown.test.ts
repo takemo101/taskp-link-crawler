@@ -112,7 +112,7 @@ describe("htmlToMarkdown - MarkItDown default", () => {
 
 		expect(result).toContain("# Heading");
 		expect(result).toContain("Paragraph text");
-		expect(spawn).toHaveBeenCalledTimes(3);
+		expect(spawn).toHaveBeenCalledTimes(2);
 
 		resetMarkItDownWorkerForTests();
 	});

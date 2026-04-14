@@ -24,7 +24,7 @@ crawl --help
 - **Bun >= 1.2.0**（必須）
 - **playwright-cli**（cli fetcher 用）: `npm install -g @playwright/cli`
 - **playwright**（native fetcher 用）: `bun add -g playwright` + `npx playwright install chromium`
-- **uv / uvx**（推奨）: MarkItDown 変換で使用。なくても Turndown にフォールバック
+- **markitdown**（推奨）: `pip3 install markitdown` で高品質な HTML→Markdown 変換。なくても Turndown にフォールバック
 
 ### taskp スキルとして使う場合
 
